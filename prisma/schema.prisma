@@ -1,0 +1,231 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id               String            @id @default(uuid())
+  email            String            @unique
+  senhaHash        String
+  telefone         String?
+  updatedAt        DateTime          @updatedAt
+  onBoarding       Boolean           @default(false)
+  endereco         String?
+  familiaId        String?
+  nome             String?
+  pictureUrl       String?
+  role             Role?             @default(cultivador)
+  username         String            @unique
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  createdAt        DateTime          @default(now())
+  Disponibilidade  Disponibilidade?
+  familiasGestor   Familia[]         @relation("GestorFamilia")
+  hortasGestor     Horta[]           @relation("GestorHortas")
+  Log              Log[]
+  Notificacao      Notificacao[]
+  PerfilAdmin      PerfilAdmin?
+  PerfilCultivador PerfilCultivador?
+  PerfilGestor     PerfilGestor?
+  PerfilVoluntario PerfilVoluntario?
+  familiasMembro   Familia?          @relation("UsuarioFamilia", fields: [familiaId], references: [id])
+}
+
+model PerfilGestor {
+  id                   String   @id @default(uuid())
+  usuarioId            String   @unique
+  cargo                String?
+  recebeAlertas        Boolean  @default(true)
+  organizacaoVinculada String
+  observacoes          String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  usuario              Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+model Disponibilidade {
+  id                 String            @id @default(uuid())
+  usuarioId          String            @unique
+  diaSemana          DiaSemana
+  horarioIni         DateTime
+  horarioFim         DateTime
+  perfilVoluntarioId String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  PerfilVoluntario   PerfilVoluntario? @relation(fields: [perfilVoluntarioId], references: [id])
+  usuario            Usuario           @relation(fields: [usuarioId], references: [id])
+}
+
+model PerfilVoluntario {
+  id              String            @id @default(uuid())
+  usuarioId       String            @unique
+  interesse       String?
+  disponivel      Boolean           @default(true)
+  observacoes     String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  disponibilidade Disponibilidade[]
+  usuario         Usuario           @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+model PerfilCultivador {
+  id               String   @id @default(uuid())
+  usuarioId        String   @unique
+  tipoExperiencia  String?
+  habilidades      String?
+  plantasFavoritas String?
+  observacoes      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  usuario          Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+model PerfilAdmin {
+  id          String   @id @default(uuid())
+  cargo       String
+  ativo       Boolean
+  observacoes String?
+  usuarioId   String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  usuario     Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+model Familia {
+  representante String
+  qtdMembros    Int
+  descricao     String?
+  gestorId      String
+  id            String    @id @default(uuid())
+  nome          String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  avisos        Aviso[]
+  gestor        Usuario   @relation("GestorFamilia", fields: [gestorId], references: [id])
+  hortas        Horta[]   @relation("HortasFamilia")
+  membros       Usuario[] @relation("UsuarioFamilia")
+}
+
+model Horta {
+  areaCultivada Decimal
+  tipoSolo      String
+  tipoHorta     EHorta
+  observacoes   String?
+  familiaId     String?
+  descricao     String?
+  endereco      String
+  gestorId      String?
+  id            String    @id @default(uuid())
+  nome          String
+  coordenada    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  familia       Familia?  @relation("HortasFamilia", fields: [familiaId], references: [id])
+  gestor        Usuario?  @relation("GestorHortas", fields: [gestorId], references: [id])
+  plantios      Plantio[]
+}
+
+model Plantio {
+  tipoPlantacao      String
+  previsaoColheita   DateTime
+  quantidadePlantada Decimal
+  unidadeMedida      String
+  observacoes        String?
+  hortaId            String
+  colheitaId         String?   @unique
+  cultura            String
+  dataColheita       DateTime?
+  dataInicio         DateTime
+  id                 String    @id @default(uuid())
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  colheita           Colheita?
+  horta              Horta     @relation(fields: [hortaId], references: [id], onDelete: Cascade)
+}
+
+model Colheita {
+  dataColheita      DateTime @default(now())
+  quantidadeColhida Decimal
+  unidadeMedida     String
+  destinoColheita   String
+  plantioId         String   @unique
+  observacoes       String?
+  cultura           String
+  id                String   @id @default(uuid())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  plantio           Plantio  @relation(fields: [plantioId], references: [id], onDelete: Cascade)
+}
+
+model Aviso {
+  id         String   @id @default(uuid())
+  titulo     String
+  descricao  String
+  dataEvento DateTime
+  familiaId  String
+  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now())
+  familia    Familia  @relation(fields: [familiaId], references: [id])
+}
+
+model Notificacao {
+  id        String   @id @default(uuid())
+  usuarioId String
+  titulo    String
+  mensagem  String
+  lida      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+}
+
+model Log {
+  id        String   @id @default(uuid())
+  usuarioId String
+  acao      String
+  contexto  String?
+  data      DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+}
+
+model Faq {
+  id        String   @id @default(uuid())
+  pergunta  String
+  resposta  String
+  categoria String?
+  ordem     Int?
+  criadoEm  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  admin
+  gestor
+  voluntario
+  cultivador
+}
+
+enum DiaSemana {
+  DOM
+  SEG
+  TER
+  QUA
+  QUI
+  SEX
+  SAB
+}
+
+enum EHorta {
+  escolar
+  comunitaria
+  institucional
+  ong
+  familiar
+}
